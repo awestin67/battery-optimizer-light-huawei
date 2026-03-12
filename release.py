@@ -160,7 +160,11 @@ def check_license_headers():
 
     for root, dirs, files in os.walk(BASE_DIR):
         # Ignorera mappar
-        dirs[:] = [d for d in dirs if d not in [".venv", "venv", "env", "__pycache__", ".git", ".pytest_cache", "requests", "Lib", "site-packages", "build", "dist"]]
+        ignored = [
+            ".venv", "venv", "env", "__pycache__", ".git", ".pytest_cache",
+            "requests", "Lib", "site-packages", "build", "dist"
+        ]
+        dirs[:] = [d for d in dirs if d not in ignored]
 
         for file in files:
             if file.endswith(".py"):
@@ -218,23 +222,87 @@ def check_images():
     else:
         print("⚠️  Ingen logo.png hittades. Integrationen kommer sakna bilder i HA.")
 
-def create_github_release(version):
-    print("\n--- 🚀 SKAPA GITHUB RELEASE ---")
-
-    # Hitta repo-namn från git config
-    repo_part = None
+def get_github_repo_slug():
+    """Hämtar 'user/repo' från git config."""
     try:
         remote_url = subprocess.check_output(
             ["git", "config", "--get", "remote.origin.url"], shell=False
         ).decode().strip()
-        # Hantera git@github.com:user/repo.git och https://github.com/user/repo.git
         if "github.com" in remote_url:
-            # Enkel parsing
-            repo_part = remote_url.split("github.com")[-1].replace(":", "/").lstrip("/")
-            if repo_part.endswith(".git"):
-                repo_part = repo_part[:-4]
+            slug = remote_url.split("github.com")[-1].replace(":", "/").lstrip("/")
+            if slug.endswith(".git"):
+                slug = slug[:-4]
+            return slug
     except Exception:
-        print("⚠️  Kunde inte läsa git remote URL.")
+        pass
+    return None
+
+def check_github_metadata(repo_slug, token):
+    """Kontrollerar och uppdaterar GitHub-metadata (Beskrivning & Ämnen)."""
+    if not repo_slug or not token:
+        return
+
+    print("\n--- 🏷️  GITHUB METADATA ---")
+    headers = {
+        "Authorization": f"token {token}",
+        "Accept": "application/vnd.github.v3+json"
+    }
+    url = f"https://api.github.com/repos/{repo_slug}"
+
+    try:
+        resp = requests.get(url, headers=headers, timeout=10)
+        if resp.status_code != 200:
+            print(f"⚠️  Kunde inte hämta metadata: {resp.status_code}")
+            return
+
+        data = resp.json()
+        description = data.get("description")
+        topics = data.get("topics", [])
+
+        needs_update = False
+        new_description = description
+        new_topics = topics
+
+        if not description:
+            print("❌ Repository saknar beskrivning (Krävs av HACS).")
+            new_description = input("Ange beskrivning: ").strip()
+            if new_description:
+                needs_update = True
+
+        if not topics:
+            print("❌ Repository saknar ämnen/topics (Krävs av HACS).")
+            print("Förslag: home-assistant, integration, hacs, huawei, solar, battery")
+            topics_str = input("Ange topics (komma-separerad): ").strip()
+            if topics_str:
+                new_topics = [t.strip() for t in topics_str.split(",") if t.strip()]
+                needs_update = True
+
+        if needs_update:
+            print("Uppdaterar GitHub...")
+            patch_data = {}
+            if new_description:
+                patch_data["description"] = new_description
+            if new_topics:
+                patch_data["topics"] = new_topics
+
+            p_resp = requests.patch(url, json=patch_data, headers=headers, timeout=10)
+            if p_resp.status_code == 200:
+                print("✅ GitHub-metadata uppdaterad!")
+            else:
+                print(f"❌ Misslyckades uppdatera: {p_resp.status_code}")
+        else:
+            print("✅ Metadata OK.")
+
+    except Exception as e:
+        print(f"⚠️  Fel vid metadatakontroll: {e}")
+
+def create_github_release(version, repo_slug=None):
+    print("\n--- 🚀 SKAPA GITHUB RELEASE ---")
+
+    # Hitta repo-namn från git config
+    repo_part = repo_slug
+    if not repo_part:
+        repo_part = get_github_repo_slug()
 
     token = os.getenv("GITHUB_TOKEN")
     if not token:
@@ -339,11 +407,14 @@ def create_github_release(version):
 def main():
     # 1. Säkerhetskollar
     check_branch()
+    repo_slug = get_github_repo_slug()
+
     run_tests()
     run_lint()
     check_license_headers()
     check_images()
     check_for_updates()
+    check_github_metadata(repo_slug, os.getenv("GITHUB_TOKEN"))
 
     # 2. Hämta nuvarande version
     current_ver = get_current_version(MANIFEST_PATH)
@@ -389,7 +460,7 @@ def main():
     run_command(["git", "push"])
     run_command(["git", "push", "--tags"])
 
-    create_github_release(new_ver)
+    create_github_release(new_ver, repo_slug)
 
     print(f"\n✨ KLART! Version {new_ver} är publicerad.")
 

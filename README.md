@@ -47,24 +47,24 @@ Fokus ligger på att agera på beslut från Battery Optimizer Light för att sty
 
 Här är de tjänster som integrationen tillhandahåller. Dessa kan anropas via **Utvecklarverktyg -> Tjänster** eller användas i automationer och skript.
 
-### `battery_optimizer_light_huawei.force_charge`
+# `battery_optimizer_light_huawei.force_charge`
 Tvingar batteriet att ladda med en specifik effekt.
 *   **Parametrar:**
     *   `power`: (Krävs) Effekten i Watt (W) att ladda med.
 *   **Beteende:** Skickar kommando till Huawei-integrationen att tvinga laddning i 60 sekunder.
 
-### `battery_optimizer_light_huawei.force_discharge`
+# `battery_optimizer_light_huawei.force_discharge`
 Tvingar batteriet att ladda ur med en specifik effekt.
 *   **Parametrar:**
     *   `power`: (Krävs) Effekten i Watt (W) att ladda ur med.
 *   **Beteende:** Skickar kommando till Huawei-integrationen att tvinga urladdning i 60 sekunder.
 
-### `battery_optimizer_light_huawei.hold`
+# `battery_optimizer_light_huawei.hold`
 Sätter batteriet i vänteläge/paus.
 *   **Parametrar:** Inga.
 *   **Beteende:** Stoppar eventuell tvingad laddning/urladdning och sätter driftläget till `fixed_charge_discharge` (vilket hindrar batteriet från att ladda ur mot huslasten).
 
-### `battery_optimizer_light_huawei.auto`
+# `battery_optimizer_light_huawei.auto`
 Återställer batteriet till automatiskt läge.
 *   **Parametrar:** Inga.
 *   **Beteende:** Stoppar eventuell tvingad laddning/urladdning och sätter driftläget till `adaptive` (Maximise Self Consumption).

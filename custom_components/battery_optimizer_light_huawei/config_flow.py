@@ -74,7 +74,7 @@ class HuaweiOptionsFlowHandler(config_entries.OptionsFlow):
     async def async_step_init(self, user_input=None):
         """Manage the options (Auto Control)."""
         if user_input is not None:
-           
+
             self.hass.config_entries.async_update_entry(
                 self._config_entry,
                 options=user_input, # Options are stored in entry.options

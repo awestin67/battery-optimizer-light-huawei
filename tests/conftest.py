@@ -4,7 +4,7 @@
 """Konfiguration för pytest."""
 import os
 import sys
-from unittest.mock import MagicMock, AsyncMock, patch
+from unittest.mock import MagicMock
 import pytest
 
 # Lägg till rotkatalogen i sys.path så att vi kan importera custom_components
@@ -55,7 +55,14 @@ class MockConfigFlow:
     async def async_step_user(self, user_input=None):
         pass
 
-    def async_show_form(self, step_id=None, data_schema=None, errors=None, description_placeholders=None, last_step=None):
+    def async_show_form(
+        self,
+        step_id=None,
+        data_schema=None,
+        errors=None,
+        description_placeholders=None,
+        last_step=None,
+    ):
         """Mock method for showing a form."""
         return {
             "type": "form",

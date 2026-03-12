@@ -102,7 +102,7 @@ async def async_update_options(hass: HomeAssistant, entry: ConfigEntry):
 async def async_setup_auto_control(hass: HomeAssistant, entry: ConfigEntry):
     """Set up or tear down the automatic control listener."""
     domain_data = hass.data[DOMAIN][entry.entry_id]
-    
+
     device_id = entry.data.get(CONF_BATTERY_DEVICE_ID)
     working_mode_entity = entry.data.get(CONF_WORKING_MODE_ENTITY)
 
@@ -139,8 +139,8 @@ async def async_setup_auto_control(hass: HomeAssistant, entry: ConfigEntry):
 
             if current_action == "CHARGE":
                 await hass.services.async_call(
-                    "huawei_solar", 
-                    "forcible_charge", 
+                    "huawei_solar",
+                    "forcible_charge",
                     {
                         "device_id": device_id,
                         "power": target_power,
@@ -150,8 +150,8 @@ async def async_setup_auto_control(hass: HomeAssistant, entry: ConfigEntry):
 
             elif current_action == "DISCHARGE":
                 await hass.services.async_call(
-                    "huawei_solar", 
-                    "forcible_discharge", 
+                    "huawei_solar",
+                    "forcible_discharge",
                     {
                         "device_id": device_id,
                         "power": target_power,
@@ -166,7 +166,7 @@ async def async_setup_auto_control(hass: HomeAssistant, entry: ConfigEntry):
                 )
                 # Sätt läge till fixed_charge_discharge (Stoppar batteriet från att agera på huslast)
                 await hass.services.async_call(
-                    "select", "select_option", 
+                    "select", "select_option",
                     {"entity_id": working_mode_entity, "option": "fixed_charge_discharge"}
                 )
 
@@ -177,7 +177,7 @@ async def async_setup_auto_control(hass: HomeAssistant, entry: ConfigEntry):
                 )
                 # Byt tillbaka till adaptive (Maximise Self Consumption)
                 await hass.services.async_call(
-                    "select", "select_option", 
+                    "select", "select_option",
                     {"entity_id": working_mode_entity, "option": "adaptive"}
                 )
 

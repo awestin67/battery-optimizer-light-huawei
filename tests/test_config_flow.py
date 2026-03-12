@@ -15,13 +15,11 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """Test the Huawei Battery Optimizer config flow."""
-from unittest.mock import patch
 import pytest
 
-from homeassistant import config_entries, data_entry_flow
+from homeassistant import data_entry_flow
 from homeassistant.core import HomeAssistant
 
-from custom_components.battery_optimizer_light_huawei.const import DOMAIN
 from custom_components.battery_optimizer_light_huawei.config_flow import HuaweiConfigFlow
 
 
