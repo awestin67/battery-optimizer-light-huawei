@@ -22,4 +22,5 @@ DOMAIN = "battery_optimizer_light_huawei"
 # Konfiguration
 CONF_BATTERY_DEVICE_ID = "battery_device_id"
 CONF_WORKING_MODE_ENTITY = "working_mode_entity"
+CONF_DEVICE_STATUS_ENTITY = "device_status_entity"
 CONF_AUTO_CONTROL = "auto_control"

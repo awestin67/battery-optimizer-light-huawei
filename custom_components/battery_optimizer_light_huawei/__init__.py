@@ -125,6 +125,10 @@ async def async_setup_auto_control(hass: HomeAssistant, entry: ConfigEntry):
             current_action = new_state.state
             _LOGGER.debug(f"Optimizer action changed to: {current_action}")
 
+            # Hämta nuvarande driftläge för att undvika onödiga anrop (Filter)
+            current_mode_state = hass.states.get(working_mode_entity)
+            current_mode = current_mode_state.state if current_mode_state else None
+
             # Hämta effektvärde om det behövs (för Charge/Discharge)
             target_power = 0
             if current_action in ["CHARGE", "DISCHARGE"]:
@@ -160,6 +164,11 @@ async def async_setup_auto_control(hass: HomeAssistant, entry: ConfigEntry):
                 )
 
             elif current_action == "HOLD":
+                # Filter: Om vi redan är i fixed_charge_discharge (Hold), gör inget.
+                if current_mode == "fixed_charge_discharge":
+                    _LOGGER.debug("Battery already in fixed_charge_discharge (HOLD). Skipping.")
+                    return
+
                 # Stoppa ev. pågående tvingad laddning/urladdning
                 await hass.services.async_call(
                     "huawei_solar", "stop_forcible_charge", {"device_id": device_id}
@@ -171,6 +180,11 @@ async def async_setup_auto_control(hass: HomeAssistant, entry: ConfigEntry):
                 )
 
             elif current_action == "IDLE":
+                # Filter: Om vi redan är i adaptive (Auto), gör inget.
+                if current_mode == "adaptive":
+                    _LOGGER.debug("Battery already in adaptive mode (IDLE). Skipping.")
+                    return
+
                 # IDLE = Auto/Self Consumption
                 await hass.services.async_call(
                     "huawei_solar", "stop_forcible_charge", {"device_id": device_id}

@@ -6,11 +6,13 @@
         "description": "Välj ditt Huawei-batteri och sensorn för driftläge (Working Mode).",
         "data": {
           "battery_device_id": "Huawei Batteri/Inverter (Enhet)",
-          "working_mode_entity": "Driftläge Sensor (Select Entity)"
+          "working_mode_entity": "Driftläge Sensor (Select Entity)",
+          "device_status_entity": "Enhetsstatus Sensor (Device Status)"
         },
         "data_description": {
           "battery_device_id": "Välj den enhet som representerar din Huawei Inverter/Batteri.",
-          "working_mode_entity": "Välj entiteten som styr driftläget, t.ex. select.inverter_working_mode (ska ha alternativ som 'adaptive' och 'fixed_charge_discharge')."
+          "working_mode_entity": "Välj entiteten som styr driftläget, t.ex. select.inverter_working_mode (ska ha alternativ som 'adaptive' och 'fixed_charge_discharge').",
+          "device_status_entity": "Välj sensorn som visar växelriktarens status, t.ex. sensor.inverter_device_status (visar 'On-grid', 'Standby' etc)."
         }
       }
     },

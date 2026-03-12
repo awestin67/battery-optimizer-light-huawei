@@ -1,7 +1,5 @@
 # Battery Optimizer Light Huawei
 
-<img src="https://raw.githubusercontent.com/awestin67/battery-optimizer-light-huawei/main/custom_components/battery_optimizer_light_huawei/logo.png" alt="Logo" width="200"/>
-
 [![HACS](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/integration)
 [![Validate and Test](https://github.com/awestin67/battery-optimizer-light-huawei/actions/workflows/run_tests.yml/badge.svg)](https://github.com/awestin67/battery-optimizer-light-huawei/actions/workflows/run_tests.yml)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
@@ -12,7 +10,9 @@ Fokus ligger på att agera på beslut från Battery Optimizer Light för att sty
 ## ✨ Funktioner
 
 *   **Sensorer:**
-    *   **OBS:** Denna integration skapar inga egna sensorer. Den förlitar sig på de sensorer som tillhandahålls av `Huawei Solar`-integrationen (t.ex. batterinivå, effekt, driftläge).
+    *   📡 **Huawei Solar Connection (Binary)** - Visar "Connected" så länge Huawei-entiteterna är tillgängliga.
+    *   ⚙️ **Huawei Working Mode** - Speglar det aktuella driftläget (t.ex. `adaptive`, `fixed_charge_discharge`).
+    *   ℹ️ **Huawei Device Status** - Visar växelriktarens status (t.ex. `On-grid`, `Standby`), om konfigurerad.
 *   **Styrning:**
     *   🛠 **Tjänster** - `force_charge`, `force_discharge`, `hold` och `auto` för avancerad styrning av Huawei-batteriet. Dessa tjänster anropar i sin tur tjänster i `Huawei Solar`-integrationen.
 
@@ -38,6 +38,7 @@ Fokus ligger på att agera på beslut från Battery Optimizer Light för att sty
 3.  Sök efter **Battery Optimizer Light Huawei**.
 4.  Välj din Huawei Inverter/Batteri-enhet.
 5.  Välj entiteten för "Working Mode" (t.ex. `select.inverter_working_mode`).
+6.  (Valfritt) Välj entiteten för "Device Status" (t.ex. `sensor.inverter_device_status`) för att se driftstatus.
 
 ## Krav
 *   En fungerande installation av `Huawei Solar`-integrationen i Home Assistant.

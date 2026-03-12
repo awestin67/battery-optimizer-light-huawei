@@ -21,7 +21,13 @@ from homeassistant import config_entries
 from homeassistant.core import callback
 from homeassistant.helpers import selector
 
-from .const import DOMAIN, CONF_BATTERY_DEVICE_ID, CONF_WORKING_MODE_ENTITY, CONF_AUTO_CONTROL
+from .const import (
+    DOMAIN,
+    CONF_BATTERY_DEVICE_ID,
+    CONF_WORKING_MODE_ENTITY,
+    CONF_DEVICE_STATUS_ENTITY,
+    CONF_AUTO_CONTROL,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -52,6 +58,9 @@ class HuaweiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             ),
             vol.Required(CONF_WORKING_MODE_ENTITY): selector.EntitySelector(
                 selector.EntitySelectorConfig(domain="select")
+            ),
+            vol.Optional(CONF_DEVICE_STATUS_ENTITY): selector.EntitySelector(
+                selector.EntitySelectorConfig(domain="sensor")
             ),
         })
 
@@ -94,3 +103,8 @@ class HuaweiOptionsFlowHandler(config_entries.OptionsFlow):
             CONF_AUTO_CONTROL: current_options.get(CONF_AUTO_CONTROL, True),
         }
         schema = self.add_suggested_values_to_schema(schema, suggested_values)
+
+        return self.async_show_form(
+            step_id="init",
+            data_schema=schema
+        )

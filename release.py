@@ -131,7 +131,7 @@ def run_tests():
             print("⚠️  Inga tester hittades i 'tests/'. Hoppar över.")
             return
 
-        subprocess.run(["pytest", test_dir], check=True, shell=False)
+        subprocess.run(["pytest", "-v", test_dir], check=True, shell=False)
         print("✅ Alla tester godkända.")
     except FileNotFoundError:
         print("⚠️  Kunde inte hitta 'pytest'.")
