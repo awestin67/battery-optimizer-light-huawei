@@ -1,0 +1,39 @@
+force_charge:
+  name: Tvinga laddning
+  description: Styr batteriet att ladda med angiven effekt (i 60 sekunder).
+  fields:
+    power:
+      name: Effekt
+      description: Laddningseffekt i Watt.
+      required: true
+      example: 1000
+      selector:
+        number:
+          min: 0
+          max: 30000
+          unit_of_measurement: W
+          mode: box
+
+force_discharge:
+  name: Tvinga urladdning
+  description: Styr batteriet att ladda ur med angiven effekt (i 60 sekunder).
+  fields:
+    power:
+      name: Effekt
+      description: Urladdningseffekt i Watt.
+      required: true
+      example: 1000
+      selector:
+        number:
+          min: 0
+          max: 30000
+          unit_of_measurement: W
+          mode: box
+
+hold:
+  name: Hold
+  description: Sätter batteriet i vänteläge (Stop Forcible Charge + Fixed Charge/Discharge).
+
+auto:
+  name: Autoläge
+  description: Återgår till batteriets automatiska driftläge (Adaptive / Self-consumption).

@@ -1,0 +1,36 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Battery Optimizer Light Huawei",
+        "description": "Välj ditt Huawei-batteri och sensorn för driftläge (Working Mode).",
+        "data": {
+          "battery_device_id": "Huawei Batteri/Inverter (Enhet)",
+          "working_mode_entity": "Driftläge Sensor (Select Entity)"
+        },
+        "data_description": {
+          "battery_device_id": "Välj den enhet som representerar din Huawei Inverter/Batteri.",
+          "working_mode_entity": "Välj entiteten som styr driftläget, t.ex. select.inverter_working_mode (ska ha alternativ som 'adaptive' och 'fixed_charge_discharge')."
+        }
+      }
+    },
+    "error": {},
+    "abort": {
+      "already_configured": "Enheten är redan konfigurerad."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Inställningar",
+        "description": "Konfigurera automatisk styrning.",
+        "data": {
+          "auto_control": "Aktivera automatisk styrning"
+        },
+        "data_description": {
+          "auto_control": "Om aktiverad lyssnar integrationen automatiskt på 'sensor.optimizer_light_action' från Battery Optimizer Light och styr batteriet därefter (Ladda, Ladda ur, Pausa, Auto). Detta eliminerar behovet av en separat automation."
+        }
+      }
+    }
+  }
+}
