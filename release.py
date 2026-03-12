@@ -22,6 +22,12 @@ import shutil
 
 try:
     import requests
+    # Kontrollera att det är rätt requests-bibliotek och inte en lokal mapp
+    if not hasattr(requests, "post"):
+        print("❌ FEL: Det finns en lokal mapp som heter 'requests' i projektet som skuggar biblioteket.")
+        print("   Detta gör att Python laddar din mapp istället för 'requests'-paketet.")
+        print("   👉 Lösning: Ta bort mapparna 'requests', 'Lib' och 'site-packages' från projektroten.")
+        sys.exit(1)
 except ImportError:
     sys.exit("❌ Modulen 'requests' saknas. Installera den med: pip install requests")
 
