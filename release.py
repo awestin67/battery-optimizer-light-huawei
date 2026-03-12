@@ -239,10 +239,16 @@ def get_github_repo_slug():
 
 def check_github_metadata(repo_slug, token):
     """Kontrollerar och uppdaterar GitHub-metadata (Beskrivning & Ämnen)."""
-    if not repo_slug or not token:
+    if not repo_slug:
         return
 
     print("\n--- 🏷️  GITHUB METADATA ---")
+
+    if not token:
+        print("⚠️  Ingen GITHUB_TOKEN hittad. Hoppar över automatisk kontroll av metadata.")
+        print("   👉 Du måste manuellt ange Beskrivning och Topics på GitHub för att HACS-valideringen ska passera.")
+        return
+
     headers = {
         "Authorization": f"token {token}",
         "Accept": "application/vnd.github.v3+json"
