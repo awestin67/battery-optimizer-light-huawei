@@ -127,6 +127,9 @@ async def test_auto_control_logic(hass):
         # Mocka hass.states.get för att returnera våra simulerade värden
         def get_state(entity_id):
             m_state = MagicMock()
+            if entity_id == "sensor.optimizer_light_action":
+                m_state.state = new_state_str
+                return m_state
             if entity_id == "sensor.optimizer_light_power":
                 m_state.state = power_kw
                 return m_state
@@ -183,3 +186,12 @@ async def test_auto_control_logic(hass):
     # Om vi redan är i adaptive ska INGET anrop göras
     await simulate_event("IDLE", current_mode="adaptive")
     hass.services.async_call.assert_not_called()
+
+    # --- Test: Default (Okänd Action) ---
+    # Om action är något annat (t.ex. "UNKNOWN_COMMAND") ska den köra default (Ladda 10W)
+    await simulate_event("UNKNOWN_COMMAND")
+    hass.services.async_call.assert_called_with(
+        "huawei_solar", "forcible_charge",
+        {"device_id": "huawei_device_123", "power": 10, "duration": 60}
+    )
+    hass.services.async_call.reset_mock()

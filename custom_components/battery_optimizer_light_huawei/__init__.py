@@ -15,19 +15,19 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import logging
+from datetime import timedelta
 
 import voluptuous as vol
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant, Event
-from homeassistant.helpers.event import async_track_state_change_event
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers.event import async_track_state_change_event, async_track_time_interval
 
 from .const import DOMAIN, CONF_BATTERY_DEVICE_ID, CONF_WORKING_MODE_ENTITY, CONF_AUTO_CONTROL
 
 _LOGGER = logging.getLogger(__name__)
 
-# Vi har inga egna sensorer, switchar eller binära sensorer längre.
-# Vi förlitar oss på Huawei Solar integrationens entiteter och styr via tjänster.
-PLATFORMS = []
+# Ladda sensor-plattformarna för att skapa status-entiteter.
+PLATFORMS = ["binary_sensor", "sensor"]
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -106,23 +106,23 @@ async def async_setup_auto_control(hass: HomeAssistant, entry: ConfigEntry):
     device_id = entry.data.get(CONF_BATTERY_DEVICE_ID)
     working_mode_entity = entry.data.get(CONF_WORKING_MODE_ENTITY)
 
-    # Cancel any existing listener
-    if domain_data["auto_control_listener"]:
+    # Cancel any existing listeners
+    if domain_data.get("auto_control_listener"):
         _LOGGER.debug("Cancelling existing auto control listener.")
         domain_data["auto_control_listener"]()
         domain_data["auto_control_listener"] = None
 
     # If auto control is enabled, set up a new listener
     if entry.options.get(CONF_AUTO_CONTROL, True):
-        _LOGGER.info("Automatic control from sensor.optimizer_light_action is enabled.")
+        _LOGGER.info("Automatic control enabled (Event & Time interval).")
 
-        async def handle_optimizer_action_change(event: Event):
-            """Handle state changes for sensor.optimizer_light_action."""
-            new_state = event.data.get("new_state")
-            if new_state is None or new_state.state in ("unknown", "unavailable"):
+        async def update_battery_control(event=None):
+            """Evaluate logic and control battery based on current sensor state."""
+            # Hämta aktuell status (oavsett om vi triggades av event eller tid)
+            action_state = hass.states.get("sensor.optimizer_light_action")
+            if not action_state or action_state.state in ("unknown", "unavailable"):
                 return
-
-            current_action = new_state.state
+            current_action = action_state.state
             _LOGGER.debug(f"Optimizer action changed to: {current_action}")
 
             # Hämta nuvarande driftläge för att undvika onödiga anrop (Filter)
@@ -194,11 +194,30 @@ async def async_setup_auto_control(hass: HomeAssistant, entry: ConfigEntry):
                     "select", "select_option",
                     {"entity_id": working_mode_entity, "option": "adaptive"}
                 )
+            else:
+                # Default action (från automationens 'default' block)
+                # Körs om action är något annat än ovanstående (men inte unknown/unavailable)
+                await hass.services.async_call(
+                    "huawei_solar",
+                    "forcible_charge",
+                    {
+                        "device_id": device_id,
+                        "power": 10,
+                        "duration": 60
+                    }
+                )
 
-        # Set up the listener
-        domain_data["auto_control_listener"] = async_track_state_change_event(
-            hass, ["sensor.optimizer_light_action"], handle_optimizer_action_change
+        # Lyssnare 1: Vid statusförändring
+        unsub_state = async_track_state_change_event(
+            hass, ["sensor.optimizer_light_action"], update_battery_control
         )
+        # Lyssnare 2: Var 5:e minut (Time Pattern)
+        unsub_time = async_track_time_interval(
+            hass, update_battery_control, timedelta(minutes=5)
+        )
+
+        # Spara en funktion som avregistrerar båda
+        domain_data["auto_control_listener"] = lambda: (unsub_state(), unsub_time())
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
