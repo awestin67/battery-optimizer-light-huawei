@@ -19,6 +19,7 @@ import subprocess
 import sys
 import os
 import shutil
+from collections import OrderedDict
 
 try:
     import requests
@@ -107,6 +108,7 @@ def check_for_updates():
 
     except subprocess.CalledProcessError:
         print("⚠️  Kunde inte nå GitHub. Fortsätter ändå...")
+
 
 def check_branch():
     """Varnar om man inte står på main-branchen"""
@@ -210,6 +212,58 @@ def check_license_headers():
         sys.exit(1)
 
     print("✅ Alla Python-filer har korrekt licens-header.")
+
+def sort_manifest_keys(file_path):
+    """Sorterar nycklar i manifest.json enligt Hassfest-krav: domain, name, sedan alfabetiskt."""
+    print(f"\n--- 🔧 FIXAR SORTERING I {os.path.basename(file_path)} ---")
+    try:
+        with open(file_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+
+        # Spara undan domain och name
+        domain = data.pop("domain", None)
+        name = data.pop("name", None)
+
+        # Skapa en ny OrderedDict
+        new_data = OrderedDict()
+        if domain:
+            new_data["domain"] = domain
+        if name:
+            new_data["name"] = name
+
+        # Lägg till resten sorterat
+        for key in sorted(data.keys()):
+            new_data[key] = data[key]
+
+        with open(file_path, "w", encoding="utf-8") as f:
+            json.dump(new_data, f, indent=2, ensure_ascii=False)
+            f.write("\n") # Lägg till nyrad på slutet
+
+        print("✅ Manifest sorterat korrekt.")
+    except Exception as e:
+        print(f"⚠️  Kunde inte sortera manifest: {e}")
+
+def run_hassfest_local():
+    """Försöker köra hassfest via Docker om det finns tillgängligt."""
+    print("\n--- 🏠 KÖR HASSFEST (Docker) ---")
+
+    if not shutil.which("docker"):
+        print("⚠️  Docker hittades inte i PATH. Hoppar över lokal Hassfest-validering.")
+        print("   (Installera Docker Desktop för att köra detta lokalt)")
+        return
+
+    try:
+        cmd = [
+            "docker", "run", "--rm", "-v", f"{os.getcwd()}:/github/workspace",
+            "ghcr.io/home-assistant/hassfest:latest"
+        ]
+        subprocess.run(cmd, check=True, shell=False)
+        print("✅ Hassfest (Local) godkänd!")
+    except subprocess.CalledProcessError:
+        print("\n❌ Hassfest (eller Docker) returnerade ett fel.")
+        print("   Om Docker inte är igång kan du ignorera detta (GitHub Actions kör kollen sen).")
+        if input("   Vill du fortsätta ändå? (j/n): ").lower() != 'j':
+            sys.exit(1)
 
 def check_images():
     """Kollar att bilder finns för HA UI och skapar icon.png om den saknas."""
@@ -424,6 +478,8 @@ def main():
     run_tests()
     run_lint()
     check_license_headers()
+    sort_manifest_keys(MANIFEST_PATH) # Fixar sorteringen automatiskt före release
+    run_hassfest_local() # Kör Hassfest via Docker
     check_images()
     check_for_updates()
     check_github_metadata(repo_slug, os.getenv("GITHUB_TOKEN"))
