@@ -85,7 +85,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             "huawei_solar", "stop_forcible_charge", {"device_id": device_id}
         )
         await hass.services.async_call(
-            "select", "select_option", {"entity_id": working_mode, "option": "adaptive"}
+            "select", "select_option", {"entity_id": working_mode, "option": "maximise_self_consumption"}
         )
 
     hass.services.async_register(DOMAIN, "force_charge", handle_force_charge, schema=SERVICE_SCHEMA)
@@ -181,8 +181,8 @@ async def async_setup_auto_control(hass: HomeAssistant, entry: ConfigEntry):
 
             elif current_action == "IDLE":
                 # Filter: Om vi redan är i adaptive (Auto), gör inget.
-                if current_mode == "adaptive":
-                    _LOGGER.debug("Battery already in adaptive mode (IDLE). Skipping.")
+                if current_mode == "maximise_self_consumption":
+                    _LOGGER.debug("Battery already in maximise_self_consumption mode (IDLE). Skipping.")
                     return
 
                 # IDLE = Auto/Self Consumption
@@ -192,7 +192,7 @@ async def async_setup_auto_control(hass: HomeAssistant, entry: ConfigEntry):
                 # Byt tillbaka till adaptive (Maximise Self Consumption)
                 await hass.services.async_call(
                     "select", "select_option",
-                    {"entity_id": working_mode_entity, "option": "adaptive"}
+                    {"entity_id": working_mode_entity, "option": "maximise_self_consumption"}
                 )
             else:
                 # Default action (från automationens 'default' block)

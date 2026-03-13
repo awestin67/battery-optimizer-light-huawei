@@ -87,7 +87,7 @@ async def test_control_services(hass):
     # Auto ska stoppa laddning OCH sätta driftläge till adaptive
     expected_calls = [
         call("huawei_solar", "stop_forcible_charge", {"device_id": "huawei_device_123"}),
-        call("select", "select_option", {"entity_id": "select.working_mode", "option": "adaptive"})
+        call("select", "select_option", {"entity_id": "select.working_mode", "option": "maximise_self_consumption"})
     ]
     hass.services.async_call.assert_has_calls(expected_calls)
 
@@ -118,7 +118,7 @@ async def test_auto_control_logic(hass):
     listener_callback = args[2]
 
     # Hjälpfunktion för att simulera händelser och sensorvärden
-    async def simulate_event(new_state_str, power_kw="0", current_mode="adaptive"):
+    async def simulate_event(new_state_str, power_kw="0", current_mode="maximise_self_consumption"):
         event = MagicMock(spec=Event)
         new_state = MagicMock()
         new_state.state = new_state_str
@@ -162,7 +162,7 @@ async def test_auto_control_logic(hass):
     hass.services.async_call.reset_mock()
 
     # --- Test: HOLD (Normalfall) ---
-    await simulate_event("HOLD", current_mode="adaptive")
+    await simulate_event("HOLD", current_mode="maximise_self_consumption")
     hass.services.async_call.assert_any_call(
         "select", "select_option",
         {"entity_id": "select.working_mode", "option": "fixed_charge_discharge"}
@@ -178,13 +178,13 @@ async def test_auto_control_logic(hass):
     await simulate_event("IDLE", current_mode="fixed_charge_discharge")
     hass.services.async_call.assert_any_call(
         "select", "select_option",
-        {"entity_id": "select.working_mode", "option": "adaptive"}
+        {"entity_id": "select.working_mode", "option": "maximise_self_consumption"}
     )
     hass.services.async_call.reset_mock()
 
     # --- Test: IDLE (Filter) ---
     # Om vi redan är i adaptive ska INGET anrop göras
-    await simulate_event("IDLE", current_mode="adaptive")
+    await simulate_event("IDLE", current_mode="maximise_self_consumption")
     hass.services.async_call.assert_not_called()
 
     # --- Test: Default (Okänd Action) ---
