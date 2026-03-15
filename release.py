@@ -525,14 +525,18 @@ def create_github_release(version: str, repo_slug: Optional[str] = None) -> None
     # --- GEMINI AI INTEGRATION ---
     if gemini_key and (raw_commits or diff_text):
         print("\n🤖 Ber Gemini AI att summera release notes...")
-        prompt = f"Skapa snygga, kategoriserade release notes på engelska för version {version}.\n"
-        prompt += "Kategorisera dem med emojis (t.ex. 🚀 Features, 🐛 Fixes, 🔧 Refactoring).\n\n"
+        prompt = f"Create concise, categorized release notes in English for version {version}.\n"
+        prompt += "Use emojis for categories (e.g., 🚀 Features, 🐛 Fixes, 🔧 Refactoring, 📚 Documentation).\n"
+        prompt += (
+            "IMPORTANT: Output ONLY the raw markdown content. "
+            "Do NOT include any greetings, conversational filler, or conclusions.\n\n"
+        )
 
         if raw_commits:
-            prompt += f"Här är commit-historiken:\n{raw_commits}\n\n"
+            prompt += f"Commit history:\n{raw_commits}\n\n"
 
         if diff_text:
-            prompt += f"Här är osparade kodändringar (diff):\n{diff_text}\n\n"
+            prompt += f"Uncommitted code changes (diff):\n{diff_text}\n\n"
 
         url_gemini = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={gemini_key}"
         headers_gemini = {"Content-Type": "application/json"}
