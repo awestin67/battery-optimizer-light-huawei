@@ -527,7 +527,7 @@ def create_github_release(version: str, repo_slug: Optional[str] = None) -> None
         url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={gemini_key}"
         prompt = (
             "Du är en expertutvecklare. Skriv en snygg och kort release note "
-            "(på svenska) baserad på följande git-historik eller filändringar. "
+            "(på engelska) baserad på följande git-historik eller filändringar. "
             "Gruppera och kategorisera dem med listor och emojis, "
             "t.ex. '🚀 Features', '🐛 Fixes', '📚 Docs', '🔧 Refactoring'.\n\n"
             f"Data:\n{raw_commits}"
