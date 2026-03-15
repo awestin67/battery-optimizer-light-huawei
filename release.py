@@ -476,6 +476,7 @@ def create_github_release(version: str, repo_slug: Optional[str] = None) -> None
 
     # Försök hämta commits sedan förra taggen
     raw_commits = ""
+    diff_text = ""
     suggested_notes = ""
     try:
         tags_str = run_command(["git", "tag", "--sort=-creatordate"], capture_output=True, exit_on_error=False)
@@ -515,33 +516,41 @@ def create_github_release(version: str, repo_slug: Optional[str] = None) -> None
                     exit_on_error=False
                 )
                 if diff_stat:
-                    raw_commits = f"(Inga commit-meddelanden. Följande filer ändrades i denna release):\n{diff_stat}"
+                    diff_text = diff_stat
     except subprocess.CalledProcessError:
         pass
 
-    suggested_notes = raw_commits
+    suggested_notes = raw_commits or diff_text
 
     # --- GEMINI AI INTEGRATION ---
-    if raw_commits and gemini_key:
+    if gemini_key and (raw_commits or diff_text):
         print("\n🤖 Ber Gemini AI att summera release notes...")
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={gemini_key}"
-        prompt = (
-            "Du är en expertutvecklare. Skriv en snygg och kort release note "
-            "(på engelska) baserad på följande git-historik eller filändringar. "
-            "Gruppera och kategorisera dem med listor och emojis, "
-            "t.ex. '🚀 Features', '🐛 Fixes', '📚 Docs', '🔧 Refactoring'.\n\n"
-            f"Data:\n{raw_commits}"
-        )
+        prompt = f"Skapa snygga, kategoriserade release notes på engelska för version {version}.\n"
+        prompt += "Kategorisera dem med emojis (t.ex. 🚀 Features, 🐛 Fixes, 🔧 Refactoring).\n\n"
+
+        if raw_commits:
+            prompt += f"Här är commit-historiken:\n{raw_commits}\n\n"
+
+        if diff_text:
+            prompt += f"Här är osparade kodändringar (diff):\n{diff_text}\n\n"
+
+        url_gemini = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={gemini_key}"
+        headers_gemini = {"Content-Type": "application/json"}
+        payload_gemini = {"contents": [{"parts": [{"text": prompt}]}]}
+
         try:
-            resp = requests.post(url, json={"contents": [{"parts": [{"text": prompt}]}]}, timeout=15)
-            if resp.status_code == 200:
-                suggested_notes = resp.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
-                print("✅ AI-förslag skapat!")
+            resp_gemini = requests.post(url_gemini, json=payload_gemini, headers=headers_gemini, timeout=30)
+            if resp_gemini.status_code == 200:
+                data = resp_gemini.json()
+                ai_text = data.get("candidates", [{}])[0].get("content", {}).get("parts", [{}])[0].get("text", "")
+                if ai_text:
+                    print("✅ AI-förslag skapat!")
+                    suggested_notes = ai_text.strip()
             else:
-                print(f"⚠️  Gemini API returnerade felkod {resp.status_code}")
+                print(f"⚠️  Kunde inte generera AI-release notes: API svarade med {resp_gemini.status_code}")
         except Exception as e:
-            print(f"⚠️  Kunde inte nå Gemini: {e}")
-    elif raw_commits and not gemini_key:
+            print(f"⚠️  Kunde inte generera AI-release notes: {e}")
+    elif (raw_commits or diff_text) and not gemini_key:
         print("\n💡 Tips: Lägg till GEMINI_API_KEY i din .env-fil för att låta AI skapa dina release notes!")
 
     if suggested_notes:
