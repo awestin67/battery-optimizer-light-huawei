@@ -482,6 +482,7 @@ def create_github_release(version: str, repo_slug: Optional[str] = None) -> None
         if tags_str:
             tags = tags_str.splitlines()
             commits = ""
+            prev_tag = None
 
             if len(tags) >= 2:
                 prev_tag = tags[1]
@@ -505,6 +506,16 @@ def create_github_release(version: str, repo_slug: Optional[str] = None) -> None
                     if f"Release {version}" not in line and "Merge branch" not in line
                 ]
                 raw_commits = "\n".join(lines)
+
+            # Om inga manuella commits hittades (t.ex. allt committades av skriptet)
+            if not raw_commits and prev_tag:
+                diff_stat = run_command(
+                    ["git", "diff", f"{prev_tag}..HEAD", "--name-status"],
+                    capture_output=True,
+                    exit_on_error=False
+                )
+                if diff_stat:
+                    raw_commits = f"(Inga commit-meddelanden. Följande filer ändrades i denna release):\n{diff_stat}"
     except subprocess.CalledProcessError:
         pass
 
@@ -516,10 +527,10 @@ def create_github_release(version: str, repo_slug: Optional[str] = None) -> None
         url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={gemini_key}"
         prompt = (
             "Du är en expertutvecklare. Skriv en snygg och kort release note "
-            "(på svenska) baserad på följande git commits. "
+            "(på svenska) baserad på följande git-historik eller filändringar. "
             "Gruppera och kategorisera dem med listor och emojis, "
             "t.ex. '🚀 Features', '🐛 Fixes', '📚 Docs', '🔧 Refactoring'.\n\n"
-            f"Commits:\n{raw_commits}"
+            f"Data:\n{raw_commits}"
         )
         try:
             resp = requests.post(url, json={"contents": [{"parts": [{"text": prompt}]}]}, timeout=15)
