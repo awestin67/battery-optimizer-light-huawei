@@ -20,6 +20,34 @@ import sys
 import os
 import shutil
 from collections import OrderedDict
+from pathlib import Path
+from typing import Optional
+
+def get_project_python() -> Path:
+    """Tries to find the python executable in the local .venv"""
+    project_root = Path(__file__).resolve().parent
+    venv_path_win = project_root / ".venv" / "Scripts" / "python.exe"
+    venv_path_nix = project_root / ".venv" / "bin" / "python"
+
+    if sys.platform == "win32" and venv_path_win.exists():
+        print(f"🐍 Hittade lokal python-tolk: {venv_path_win}")
+        return venv_path_win
+    elif venv_path_nix.exists():
+        print(f"🐍 Hittade lokal python-tolk: {venv_path_nix}")
+        return venv_path_nix
+
+    # --- NY STRIKT KONTROLL ---
+    print("❌ Hittade ingen lokal .venv i projektmappen!")
+    print("Se till att du har skapat en virtuell miljö (.venv) och installerat beroenden.")
+    sys.exit(1) # Avbryter skriptet direkt med en felkod
+
+python_exe = get_project_python()
+
+# Förhindra att skriptet körs utanför den lokala virtuella miljön
+if os.path.normcase(os.path.abspath(sys.executable)) != os.path.normcase(os.path.abspath(python_exe)):
+    print("❌ Varning: Skriptet verkar köras utanför den virtuella miljön!")
+    print(f"👉 Vänligen aktivera din .venv och kör skriptet igen (t.ex: '{python_exe} release.py')")
+    sys.exit(1)
 
 try:
     import requests
@@ -40,33 +68,54 @@ except ImportError:
     pass
 
 # --- INSTÄLLNINGAR ---
-# Korrekt sökväg baserat på ditt domännamn
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-MANIFEST_PATH = os.path.join(BASE_DIR, "custom_components", "battery_optimizer_light_huawei", "manifest.json")
+IGNORED_DIRS = [
+    ".venv", "venv", "env", "__pycache__", ".git", ".pytest_cache",
+    "requests", "Lib", "site-packages", "build", "dist"
+]
 
-def run_command(command):
+BASE_DIR = Path(__file__).resolve().parent
+MANIFEST_PATH = BASE_DIR / "custom_components" / "battery_optimizer_light_huawei" / "manifest.json"
+
+def run_command(
+    command: list[str],
+    capture_output: bool = False,
+    exit_on_error: bool = True,
+    cwd: Optional[Path] = None
+) -> Optional[str]:
     """Hjälpfunktion för att köra terminalkommandon"""
     try:
-        subprocess.run(command, check=True, shell=False)
-    except subprocess.CalledProcessError:
-        cmd_str = ' '.join(command) if isinstance(command, list) else command
-        print(f"❌ Fel vid kommando: {cmd_str}")
-        sys.exit(1)
+        result = subprocess.run(
+            command,
+            check=True,
+            shell=False,
+            cwd=cwd,
+            capture_output=capture_output,
+            text=True
+        )
+        return result.stdout.strip() if capture_output else None
+    except subprocess.CalledProcessError as e:
+        if exit_on_error:
+            cmd_str = ' '.join(command)
+            print(f"❌ Fel vid kommando: {cmd_str}")
+            if capture_output and e.stderr:
+                print(e.stderr.strip())
+            sys.exit(1)
+        raise
 
-def get_current_version(file_path):
+def get_current_version(file_path: Path) -> str:
     try:
         with open(file_path, "r", encoding="utf-8") as f:
             data = json.load(f)
             return data.get("version", "0.0.0")
     except FileNotFoundError:
         print(f"❌ Hittade inte filen: {file_path}")
-        print("👉 Kontrollera att mappen 'custom_components/battery_optimizer_light' finns.")
+        print("👉 Kontrollera att mappen 'custom_components/battery_optimizer_light_huawei' finns.")
         sys.exit(1)
     except json.JSONDecodeError:
         print(f"❌ Filen {file_path} innehåller ogiltig JSON.")
         sys.exit(1)
 
-def bump_version(version, part):
+def bump_version(version: str, part: str) -> str:
     major, minor, patch = map(int, version.split('.'))
     if part == "major":
         major += 1
@@ -79,7 +128,7 @@ def bump_version(version, part):
         patch += 1
     return f"{major}.{minor}.{patch}"
 
-def update_manifest(file_path, new_version):
+def update_manifest(file_path: Path, new_version: str) -> None:
     with open(file_path, "r", encoding="utf-8") as f:
         data = json.load(f)
 
@@ -133,26 +182,20 @@ def run_tests():
             print("⚠️  Inga tester hittades i 'tests/'. Hoppar över.")
             return
 
-        subprocess.run(["pytest", "-v", test_dir], check=True, shell=False)
+        subprocess.run([str(python_exe), "-m", "pytest", "-v", test_dir], check=True, shell=False)
         print("✅ Alla tester godkända.")
-    except FileNotFoundError:
-        print("⚠️  Kunde inte hitta 'pytest'.")
-        print("👉 Kör: pip install -r requirements_test.txt")
-        sys.exit(1)
     except subprocess.CalledProcessError:
-        print("\n❌ Testerna misslyckades! Åtgärda felen innan release.")
+        print("\n❌ Testerna misslyckades eller så saknas pytest! (Kör: pip install -r requirements_test.txt)")
         sys.exit(1)
 
 def run_lint():
     print("\n--- 🧹 KÖR LINT (Ruff) ---")
     try:
         # Kör ruff i BASE_DIR
-        subprocess.run(["ruff", "check", "."], cwd=BASE_DIR, check=True, shell=False)
+        subprocess.run([str(python_exe), "-m", "ruff", "check", "."], cwd=BASE_DIR, check=True, shell=False)
         print("✅ Linting godkänd.")
-    except FileNotFoundError:
-        print("⚠️  Kunde inte hitta 'ruff'. Installera det med 'pip install ruff' för att köra kodgranskning.")
     except subprocess.CalledProcessError:
-        print("\n❌ Linting misslyckades! Åtgärda felen innan release.")
+        print("\n❌ Linting misslyckades eller ruff saknas! Åtgärda felen innan release.")
         sys.exit(1)
 
 def check_license_headers():
@@ -167,30 +210,24 @@ def check_license_headers():
     missing_long = []
 
     for root, dirs, files in os.walk(BASE_DIR):
-        # Ignorera mappar
-        ignored = [
-            ".venv", "venv", "env", "__pycache__", ".git", ".pytest_cache",
-            "requests", "Lib", "site-packages", "build", "dist"
-        ]
-        dirs[:] = [d for d in dirs if d not in ignored]
+        dirs[:] = [d for d in dirs if d not in IGNORED_DIRS]
 
         for file in files:
             if file.endswith(".py"):
-                file_path = os.path.join(root, file)
-                rel_path = os.path.relpath(file_path, BASE_DIR)
+                file_path = Path(root) / file
+                rel_path = file_path.relative_to(BASE_DIR)
                 try:
-                    with open(file_path, "r", encoding="utf-8") as f:
-                        content = f.read()
+                    content = file_path.read_text(encoding="utf-8")
 
-                        # 1. Alla filer ska ha Copyright-raden
-                        if short_header not in content:
-                            missing_short.append(rel_path)
-                            continue
+                    # 1. Alla filer ska ha Copyright-raden
+                    if short_header not in content:
+                        missing_short.append(str(rel_path))
+                        continue
 
-                        # 2. Filer under custom_components ska ha lång header
-                        if "custom_components" in rel_path:
-                            if long_header_part not in content:
-                                missing_long.append(rel_path)
+                    # 2. Filer under custom_components ska ha lång header
+                    if "custom_components" in str(rel_path):
+                        if long_header_part not in content:
+                            missing_long.append(str(rel_path))
 
                 except Exception as e:
                     print(f"⚠️  Kunde inte läsa {file_path}: {e}")
@@ -213,9 +250,9 @@ def check_license_headers():
 
     print("✅ Alla Python-filer har korrekt licens-header.")
 
-def sort_manifest_keys(file_path):
+def sort_manifest_keys(file_path: Path) -> None:
     """Sorterar nycklar i manifest.json enligt Hassfest-krav: domain, name, sedan alfabetiskt."""
-    print(f"\n--- 🔧 FIXAR SORTERING I {os.path.basename(file_path)} ---")
+    print(f"\n--- 🔧 FIXAR SORTERING I {file_path.name} ---")
     try:
         with open(file_path, "r", encoding="utf-8") as f:
             data = json.load(f)
@@ -243,7 +280,7 @@ def sort_manifest_keys(file_path):
     except Exception as e:
         print(f"⚠️  Kunde inte sortera manifest: {e}")
 
-def run_hassfest_local():
+def run_hassfest_local() -> None:
     """Försöker köra hassfest via Docker om det finns tillgängligt."""
     print("\n--- 🏠 KÖR HASSFEST (Docker) ---")
 
@@ -252,12 +289,20 @@ def run_hassfest_local():
         print("   (Installera Docker Desktop för att köra detta lokalt)")
         return
 
+    # Kolla om Docker daemon faktiskt svarar (är igång)
+    try:
+        run_command(["docker", "info"], capture_output=True, exit_on_error=False)
+    except subprocess.CalledProcessError:
+        print("⚠️  Docker är installerat men verkar inte vara igång (Starta Docker Desktop!).")
+        print("   Hoppar över lokal Hassfest-validering.")
+        return
+
     try:
         cmd = [
-            "docker", "run", "--rm", "-v", f"{os.getcwd()}:/github/workspace",
+            "docker", "run", "--rm", "-v", f"{BASE_DIR}:/github/workspace",
             "ghcr.io/home-assistant/hassfest:latest"
         ]
-        subprocess.run(cmd, check=True, shell=False)
+        run_command(cmd, exit_on_error=False)
         print("✅ Hassfest (Local) godkänd!")
     except subprocess.CalledProcessError:
         print("\n❌ Hassfest (eller Docker) returnerade ett fel.")
@@ -265,30 +310,69 @@ def run_hassfest_local():
         if input("   Vill du fortsätta ändå? (j/n): ").lower() != 'j':
             sys.exit(1)
 
-def check_images():
+def run_hacs_validation_local() -> None:
+    """Validerar specifika HACS-krav lokalt (filer och manifest-data)."""
+    print("\n--- 📦 HACS VALIDERING (Lokal) ---")
+
+    # 1. Krav på informationsfil
+    readme = BASE_DIR / "README.md"
+    info = BASE_DIR / "info.md"
+
+    if not readme.exists() and not info.exists():
+        print("❌ HACS kräver att antingen 'README.md' eller 'info.md' finns i roten.")
+        sys.exit(1)
+
+    # 2. hacs.json (Valfritt men måste vara giltigt om det finns)
+    hacs_path = BASE_DIR / "hacs.json"
+    if hacs_path.exists():
+        try:
+            with open(hacs_path, "r", encoding="utf-8") as f:
+                json.load(f)
+            print("✅ hacs.json är giltig.")
+        except json.JSONDecodeError:
+            print("❌ hacs.json innehåller ogiltig JSON.")
+            sys.exit(1)
+
+    # 3. Manifest-koll för länkar (HACS rekommendationer/krav)
+    try:
+        with open(MANIFEST_PATH, "r", encoding="utf-8") as f:
+            data = json.load(f)
+
+        missing_keys = [k for k in ["documentation", "issue_tracker"] if k not in data]
+        if missing_keys:
+            print(f"⚠️  Manifest saknar fält som HACS rekommenderar: {', '.join(missing_keys)}")
+        else:
+            print("✅ Manifest innehåller dokumentationslänkar.")
+
+    except Exception as e:
+        print(f"⚠️  Kunde inte läsa manifest för HACS-koll: {e}")
+
+def check_images() -> None:
     """Kollar att bilder finns för HA UI och skapar icon.png om den saknas."""
     print("\n--- 🖼️  KOLLAR BILDER ---")
-    comp_dir = os.path.join(BASE_DIR, "custom_components", "battery_optimizer_light_huawei")
-    logo_path = os.path.join(comp_dir, "logo.png")
-    icon_path = os.path.join(comp_dir, "icon.png")
+    comp_dir = BASE_DIR / "custom_components" / "battery_optimizer_light_huawei"
+    logo_path = comp_dir / "logo.png"
+    icon_path = comp_dir / "icon.png"
 
-    if os.path.exists(logo_path) and (not os.path.exists(icon_path) or os.path.getsize(icon_path) == 0):
+    if logo_path.exists() and (not icon_path.exists() or icon_path.stat().st_size == 0):
         print("⚠️  icon.png saknas (krävs för integrationslistan).")
         print("   Kopierar logo.png till icon.png...")
-        shutil.copyfile(logo_path, icon_path)
+        shutil.copyfile(str(logo_path), str(icon_path))
         print("✅ icon.png skapad.")
-    elif os.path.exists(icon_path):
+    elif icon_path.exists():
         print("✅ icon.png finns.")
     else:
         print("⚠️  Ingen logo.png hittades. Integrationen kommer sakna bilder i HA.")
 
-def get_github_repo_slug():
+def get_github_repo_slug() -> Optional[str]:
     """Hämtar 'user/repo' från git config."""
     try:
-        remote_url = subprocess.check_output(
-            ["git", "config", "--get", "remote.origin.url"], shell=False
-        ).decode().strip()
-        if "github.com" in remote_url:
+        remote_url = run_command(
+            ["git", "config", "--get", "remote.origin.url"],
+            capture_output=True,
+            exit_on_error=False
+        )
+        if remote_url and "github.com" in remote_url:
             slug = remote_url.split("github.com")[-1].replace(":", "/").lstrip("/")
             if slug.endswith(".git"):
                 slug = slug[:-4]
@@ -297,7 +381,7 @@ def get_github_repo_slug():
         pass
     return None
 
-def check_github_metadata(repo_slug, token):
+def check_github_metadata(repo_slug: Optional[str], token: Optional[str]) -> None:
     """Kontrollerar och uppdaterar GitHub-metadata (Beskrivning & Ämnen)."""
     if not repo_slug:
         return
@@ -362,7 +446,7 @@ def check_github_metadata(repo_slug, token):
     except Exception as e:
         print(f"⚠️  Fel vid metadatakontroll: {e}")
 
-def create_github_release(version, repo_slug=None):
+def create_github_release(version: str, repo_slug: Optional[str] = None) -> None:
     print("\n--- 🚀 SKAPA GITHUB RELEASE ---")
 
     # Hitta repo-namn från git config
@@ -388,29 +472,69 @@ def create_github_release(version, repo_slug=None):
         print(f"👉 Du kan skapa releasen manuellt här: https://github.com/{repo_part}/releases/new?tag=v{version}")
         return
 
+    gemini_key = os.getenv("GEMINI_API_KEY")
+
     # Försök hämta commits sedan förra taggen
+    raw_commits = ""
     suggested_notes = ""
     try:
-        tags = subprocess.check_output(
-            ["git", "tag", "--sort=-creatordate"],
-            stderr=subprocess.DEVNULL
-        ).decode().strip().splitlines()
+        tags_str = run_command(["git", "tag", "--sort=-creatordate"], capture_output=True, exit_on_error=False)
+        if tags_str:
+            tags = tags_str.splitlines()
+            commits = ""
 
-        if len(tags) >= 2:
-            prev_tag = tags[1]
-            commits = subprocess.check_output(
-                ["git", "log", f"{prev_tag}..HEAD", "--pretty=format:- %s"],
-                stderr=subprocess.DEVNULL
-            ).decode().strip()
+            if len(tags) >= 2:
+                prev_tag = tags[1]
+                commits = run_command(
+                    ["git", "log", f"{prev_tag}..HEAD", "--pretty=format:- %s"],
+                    capture_output=True,
+                    exit_on_error=False
+                )
+            else:
+                # Fallback om man bara har 1 tagg (första uppdateringen med skriptet)
+                commits = run_command(
+                    ["git", "log", "-n", "20", "--pretty=format:- %s"],
+                    capture_output=True,
+                    exit_on_error=False
+                )
 
-            # Filtrera bort release-commiten
-            lines = [line for line in commits.splitlines() if f"Release {version}" not in line]
-            suggested_notes = "\n".join(lines)
-    except Exception:
+            if commits:
+                # Filtrera bort release-commiten och merge commits
+                lines = [
+                    line for line in commits.splitlines()
+                    if f"Release {version}" not in line and "Merge branch" not in line
+                ]
+                raw_commits = "\n".join(lines)
+    except subprocess.CalledProcessError:
         pass
 
+    suggested_notes = raw_commits
+
+    # --- GEMINI AI INTEGRATION ---
+    if raw_commits and gemini_key:
+        print("\n🤖 Ber Gemini AI att summera release notes...")
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={gemini_key}"
+        prompt = (
+            "Du är en expertutvecklare. Skriv en snygg och kort release note "
+            "(på svenska) baserad på följande git commits. "
+            "Gruppera och kategorisera dem med listor och emojis, "
+            "t.ex. '🚀 Features', '🐛 Fixes', '📚 Docs', '🔧 Refactoring'.\n\n"
+            f"Commits:\n{raw_commits}"
+        )
+        try:
+            resp = requests.post(url, json={"contents": [{"parts": [{"text": prompt}]}]}, timeout=15)
+            if resp.status_code == 200:
+                suggested_notes = resp.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
+                print("✅ AI-förslag skapat!")
+            else:
+                print(f"⚠️  Gemini API returnerade felkod {resp.status_code}")
+        except Exception as e:
+            print(f"⚠️  Kunde inte nå Gemini: {e}")
+    elif raw_commits and not gemini_key:
+        print("\n💡 Tips: Lägg till GEMINI_API_KEY i din .env-fil för att låta AI skapa dina release notes!")
+
     if suggested_notes:
-        print("\n📝 Föreslagna release notes (baserat på commits):")
+        print("\n📝 Föreslagna release notes:")
         print("-" * 40)
         print(suggested_notes)
         print("-" * 40)
@@ -470,7 +594,7 @@ def create_github_release(version, repo_slug=None):
     except Exception as e:
         print(f"❌ Fel vid API-anrop: {e}")
 
-def main():
+def main() -> None:
     # 1. Säkerhetskollar
     check_branch()
     repo_slug = get_github_repo_slug()
